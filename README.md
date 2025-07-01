@@ -80,6 +80,21 @@ src/
 └── lib/                # Utility functions
 ```
 
+## Deployment
+
+### Vercel (Recommended)
+1. Install Vercel CLI: `npm i -g vercel`
+2. Run: `vercel`
+3. Follow the prompts to deploy
+
+### Netlify
+1. Build the project: `npm run build`
+2. Upload the `dist` folder to Netlify
+
+### GitHub Pages
+1. Add to package.json scripts: `"deploy": "gh-pages -d dist"`
+2. Run: `npm run build && npm run deploy`
+
 ## Contributing
 
 1. Fork the repository

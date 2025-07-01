@@ -1,19 +1,92 @@
-
-import { useState } from 'react';
-import { Search, Play, Star, MapPin } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, Play, Star, MapPin, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from 'react-router-dom';
+import { services } from '@/types/services';
 
 const HeroSection = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const searchRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   
+  // Load search history from localStorage on component mount
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('searchHistory');
+    if (savedHistory) {
+      setSearchHistory(JSON.parse(savedHistory));
+    }
+  }, []);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Generate search suggestions based on services and history
+  const getSearchSuggestions = () => {
+    const suggestions = new Set<string>();
+    
+    // Add service names and types
+    services.forEach(service => {
+      suggestions.add(service.name.toLowerCase());
+      suggestions.add(service.type);
+      suggestions.add(service.provider.toLowerCase());
+    });
+    
+    // Add popular keywords
+    const popularKeywords = ['emergency', 'repair', 'installation', 'cleaning', 'maintenance', 'professional'];
+    popularKeywords.forEach(keyword => suggestions.add(keyword));
+    
+    // Filter suggestions based on current search query
+    const filteredSuggestions = Array.from(suggestions)
+      .filter(suggestion => 
+        suggestion.toLowerCase().includes(searchQuery.toLowerCase()) && 
+        suggestion.toLowerCase() !== searchQuery.toLowerCase()
+      )
+      .slice(0, 8);
+    
+    return filteredSuggestions;
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/services?search=${encodeURIComponent(searchQuery)}`);
+      // Save to search history
+      const newHistory = [searchQuery.trim(), ...searchHistory.filter(item => item !== searchQuery.trim())].slice(0, 5);
+      setSearchHistory(newHistory);
+      localStorage.setItem('searchHistory', JSON.stringify(newHistory));
+      
+      // Navigate to services page with search query
+      navigate(`/services?search=${encodeURIComponent(searchQuery.trim())}`);
+      setShowSuggestions(false);
     }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setSearchQuery(suggestion);
+    navigate(`/services?search=${encodeURIComponent(suggestion)}`);
+    setShowSuggestions(false);
+  };
+
+  const handleHistoryClick = (historyItem: string) => {
+    setSearchQuery(historyItem);
+    navigate(`/services?search=${encodeURIComponent(historyItem)}`);
+    setShowSuggestions(false);
+  };
+
+  const clearHistory = () => {
+    setSearchHistory([]);
+    localStorage.removeItem('searchHistory');
   };
 
   const popularServices = ['Plumbing', 'Cleaning', 'Electrical', 'Painting'];
@@ -52,34 +125,88 @@ const HeroSection = () => {
             </div>
             
             {/* Search Form */}
-            <form onSubmit={handleSearch} className="animate-fade-in" style={{animationDelay: '0.6s'}}>
-              <div className="bg-white/15 backdrop-blur-lg rounded-2xl p-2 shadow-2xl border border-white/20">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="relative flex-grow">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/70 h-5 w-5" />
-                    <Input
-                      type="text"
-                      placeholder="What service do you need?"
-                      className="pl-12 h-12 md:h-14 w-full bg-white/20 border-white/30 text-white placeholder:text-white/70 rounded-xl focus:bg-white/30 transition-all duration-300 text-base backdrop-blur-sm"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <div className="hidden sm:flex items-center text-white/70 px-3 text-sm">
-                      <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-                      <span>Near you</span>
+            <div className="animate-fade-in relative" style={{animationDelay: '0.6s'}} ref={searchRef}>
+              <form onSubmit={handleSearch}>
+                <div className="bg-white/15 backdrop-blur-lg rounded-2xl p-2 shadow-2xl border border-white/20">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-grow">
+                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/70 h-5 w-5" />
+                      <Input
+                        type="text"
+                        placeholder="What service do you need?"
+                        className="pl-12 h-12 md:h-14 w-full bg-white/20 border-white/30 text-white placeholder:text-white/70 rounded-xl focus:bg-white/30 transition-all duration-300 text-base backdrop-blur-sm"
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setShowSuggestions(e.target.value.length > 0);
+                        }}
+                        onFocus={() => setShowSuggestions(searchQuery.length > 0)}
+                      />
                     </div>
-                    <Button 
-                      type="submit" 
-                      className="h-12 md:h-14 px-6 md:px-8 bg-white text-brand-600 hover:bg-gray-100 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 text-base hover:scale-105"
-                    >
-                      Find Services
-                    </Button>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <div className="hidden sm:flex items-center text-white/70 px-3 text-sm">
+                        <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+                        <span>Near you</span>
+                      </div>
+                      <Button 
+                        type="submit" 
+                        className="h-12 md:h-14 px-6 md:px-8 bg-white text-brand-600 hover:bg-gray-100 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 text-base hover:scale-105"
+                      >
+                        Find Services
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </form>
+              </form>
+
+              {/* Search Suggestions Dropdown */}
+              {showSuggestions && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-lg rounded-xl border border-white/30 shadow-2xl z-50 max-h-80 overflow-y-auto">
+                  {/* Search History */}
+                  {searchHistory.length > 0 && (
+                    <div className="p-3 border-b border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">Recent Searches</span>
+                        <button
+                          onClick={clearHistory}
+                          className="text-xs text-gray-500 hover:text-gray-700 flex items-center"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Clear
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        {searchHistory.map((item, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleHistoryClick(item)}
+                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Search Suggestions */}
+                  <div className="p-3">
+                    <span className="text-sm font-medium text-gray-700 mb-2 block">Suggestions</span>
+                    <div className="space-y-1">
+                      {getSearchSuggestions().map((suggestion, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors capitalize"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
             
             {/* Popular Services */}
             <div className="animate-fade-in" style={{animationDelay: '0.8s'}}>
@@ -88,7 +215,10 @@ const HeroSection = () => {
                 {popularServices.map((service) => (
                   <button
                     key={service}
-                    onClick={() => setSearchQuery(service)}
+                    onClick={() => {
+                      setSearchQuery(service);
+                      navigate(`/services?search=${encodeURIComponent(service)}`);
+                    }}
                     className="px-3 py-2 md:px-4 md:py-2 bg-white/20 hover:bg-white/30 rounded-full text-sm font-medium transition-all duration-300 hover:scale-105 border border-white/30 backdrop-blur-sm"
                   >
                     {service}

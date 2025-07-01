@@ -1,8 +1,14 @@
-
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin } from 'lucide-react';
 
 const Footer = () => {
+  const navigate = useNavigate();
+
+  const handleServicesClick = () => {
+    navigate('/services');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <footer className="bg-gradient-to-br from-gray-900 via-brand-900 to-purple-900 text-white">
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
@@ -37,7 +43,12 @@ const Footer = () => {
                 <Link to="/" className="text-gray-300 hover:text-brand-300 transition-colors">Home</Link>
               </li>
               <li>
-                <Link to="/services" className="text-gray-300 hover:text-brand-300 transition-colors">Services</Link>
+                <button 
+                  onClick={handleServicesClick}
+                  className="text-gray-300 hover:text-brand-300 transition-colors bg-transparent border-none cursor-pointer text-left"
+                >
+                  Services
+                </button>
               </li>
               <li>
                 <Link to="/faq" className="text-gray-300 hover:text-brand-300 transition-colors">FAQ</Link>
